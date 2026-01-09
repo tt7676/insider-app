@@ -1,0 +1,114 @@
+This is an older Form 4 tool that I built, but it's not connected to DataMule. It connects directly to the SEC API. This pulls in the same data points that we have currently created but then also creates some new data points that are calculated. It also has some bespoke logic and rules that categorise the raw data in a way that it's easier for a human to read the CSV output.
+
+Your first task is ONLY to review the code and confirm you understand how it works. Do not make any changes yet.
+
+  ## The Three Files
+
+  1. **amrita_full_history_rollup.py** (main script)
+  2. **src/parse_form4.py** (XML parser)
+  3. **src/classify.py** (transaction labeler)
+
+  ---
+
+  ## What the Main Script Does (amrita_full_history_rollup.py)
+
+  This script tracks insider stock transactions for a specific person (Amrita Ahuja, CFO of Block, Inc.). It:
+
+  1. **Fetches data from SEC** — Calls the SEC EDGAR API to get a list of all Form 4 filings, then downloads the XML for each filing
+
+  2. **Parses each filing** — Sends the XML to parse_form4.py to extract individual transaction rows
+
+  3. **Builds roll-ups** — Groups related transactions together. When an executive exercises options, there are often multiple transactions on the same
+  day (exercise + sale + tax withholding). The script creates a summary "ROLLUP" row that links these together and labels them as "Exercise - Sale" or
+  "Exercise - Hold"
+
+  4. **Handles splitting** — If a sale only partially relates to an exercise, it splits the sale into two pieces: one linked to the exercise, one
+  standalone
+
+  5. **Calculates match status** — Compares shares sold vs. shares from exercise and flags if they match exactly, within tolerance, or mismatch
+
+  6. **Exports to CSV** — Outputs all SOURCE rows (individual transactions) and ROLLUP rows (summaries) to a single CSV file
+
+  The script has two modes:
+  - "full" = reprocess everything from scratch
+  - "update" = only fetch new filings since last run
+
+  ---
+
+  ## What parse_form4.py Does
+
+  This file receives raw SEC Form 4 XML and extracts every transaction row. It:
+
+  1. **Reads both tables** — Form 4 has a non-derivative table (common stock) and derivative table (options). It processes both.
+
+  2. **Extracts fields** — Pulls holder name, trade date, security type, shares, price, transaction code, etc.
+
+  3. **Detects 10b5-1 plans** — Searches XML tags and footnotes for references to "10b5-1" to flag pre-planned transactions
+
+  4. **Detects tax transactions** — Searches footnotes for keywords like "withhold", "tax", "sell-to-cover", "to the issuer"
+
+  5. **Assigns LinkRole** — Tags each row as "exercise", "sale-common", "tax-sale-issuer", "tax-sale-open", or "other" so the main script knows how to
+  group them
+
+  6. **Calls classify.py** — Passes the transaction code and flags to get a human-readable label
+
+  7. **Returns rows + count** — Sends back a list of transaction dictionaries plus a count of XML nodes (for validation)
+
+  ---
+
+  ## What classify.py Does
+
+  This is a simple single-function file. It takes 4 inputs:
+  - SEC transaction code (M, S, F, etc.)
+  - Is it under a 10b5-1 plan? (True/False)
+  - Is it a tax sale on open market? (True/False)
+  - Is it a tax sale to the issuer? (True/False)
+
+  It returns a human-readable label using this priority order:
+  1. "Tax - Sale to Issuer" — if tax_issuer is True
+  2. "Tax - Open Market" — if tax_open is True
+  3. "10b Planned Sale - Common stock" — if code is S and planned
+  4. "Sale (non tax or 10b)" — if code is S but not planned/tax
+  5. "10b Plan Buy" — if code is P or A and planned
+  6. "acquisition" — if code is P or A but not planned
+  7. "Option Exercise" — if code is M
+  8. "Conversion" — if code is C
+  9. "Gift" — if code is G
+  10. "Other" — for misc codes
+  11. "Unknown" — fallback
+
+  Tax labels take priority over plan labels to prevent mislabeling.
+
+  ---
+
+  ## How They Connect
+
+  amrita_full_history_rollup.py
+          │
+          │  calls parse_transactions(xml_text, insider_name)
+          ▼
+     parse_form4.py
+          │
+          │  calls transaction_type_label_initial(code, plan, tax_open, tax_issuer)
+          ▼
+      classify.py
+          │
+          │  returns label
+          ▼
+     Label added to row → back to main script → roll-up logic → CSV
+
+  ---
+
+  ## Your Task
+
+  1. Read all three files carefully
+  2. Confirm you understand:
+     - How filings are fetched from SEC
+     - How XML is parsed into rows
+     - How transactions are classified
+     - How roll-ups group related transactions
+     - What fields are from the API vs. calculated
+  3. Ask me any clarifying questions before proceeding
+  4. Once you confirm understanding, I will give you the next task
+
+  Do not write or modify any code yet. Just review and confirm understanding.

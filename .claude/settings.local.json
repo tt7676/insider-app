@@ -3,7 +3,17 @@
     "allow": [
       "Bash(gh repo list:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "WebFetch(domain:john-friedman.github.io)",
+      "WebFetch(domain:datamule.xyz)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:api.datamule.xyz)",
+      "WebSearch",
+      "Bash(git fetch:*)",
+      "Bash(dir /b:*)",
+      "Bash(dir /b \"Old SEC Tool\"\" 2>nul && dir /b \"testing capiq data\"\")"
     ],
     "deny": [],
     "ask": []
